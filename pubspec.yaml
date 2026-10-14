@@ -1,5 +1,5 @@
 name: shaders_and_render_object
-description: "Custom fragment shaders (.frag) integrated into the Flutter rendering pipeline, with performance measurement."
+description: "Custom RenderObject vs standard widgets, with performance measurement."
 publish_to: 'none'
 version: 0.1.0
 
@@ -21,8 +21,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
-  # Each .frag is compiled by `impellerc` at BUILD time into a per-backend
-  # bundle (SkSL / MSL / GLSL ES / SPIR-V) and shipped as an asset.
-  shaders:
-    - shaders/plasma.frag

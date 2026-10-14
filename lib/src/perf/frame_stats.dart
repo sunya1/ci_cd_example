@@ -37,7 +37,7 @@ class FrameStats {
 
   /// Raster thread CPU time: Impeller/Skia turning the layer tree into GPU
   /// commands. NOT the GPU execution time (that runs asynchronously; use
-  /// Xcode Metal capture / Android GPU Inspector). Heavy shaders surface
+  /// Xcode Metal capture / Android GPU Inspector). Heavy GPU work surfaces
   /// here only once the GPU falls behind and back-pressures the raster thread.
   final double avgRasterMs;
   final double p90RasterMs;

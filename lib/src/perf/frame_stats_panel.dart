@@ -19,7 +19,7 @@ class FrameStatsPanel extends StatelessWidget {
     );
 
     // The panel itself repaints when stats change; isolate it so it never
-    // dirties the shader layer it floats over.
+    // dirties the content it floats over.
     return RepaintBoundary(
       child: ValueListenableBuilder<FrameStats>(
         valueListenable: monitor,

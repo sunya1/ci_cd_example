@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'demos/bar_chart_demo.dart';
-import 'demos/benchmark_demo.dart';
-import 'demos/plasma_demo.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key, required this.performanceOverlay});
@@ -14,18 +12,6 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final demos = <(IconData, String, String, WidgetBuilder)>[
       (
-        Icons.blur_on,
-        'Procedural plasma',
-        'plasma.frag · uniforms, CustomPainter(repaint: clock), no rebuilds',
-        (_) => const PlasmaDemoPage(),
-      ),
-      (
-        Icons.speed,
-        'CPU vs GPU benchmark',
-        'Same effect in Dart vs shader, live FrameTiming stats',
-        (_) => const BenchmarkPage(),
-      ),
-      (
         Icons.bar_chart,
         'Bar chart',
         'Custom RenderBox: layout, paint, hitTest, live data vs Row of widgets',
@@ -35,7 +21,7 @@ class HomePage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Shader Lab'),
+        title: const Text('Render Lab'),
         actions: [
           ValueListenableBuilder(
             valueListenable: performanceOverlay,
