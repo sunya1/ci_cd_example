@@ -1,9 +1,9 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
 
 import '../shaders/shader_clock.dart';
-import '../shaders/uniform_writer.dart';
 
 typedef PlasmaPalette = ({String name, Color a, Color b});
 
@@ -14,31 +14,48 @@ const List<PlasmaPalette> plasmaPalettes = [
 ];
 
 /// Float uniform slots declared in `shaders/plasma.frag`.
-const int plasmaFloatCount = 15;
+const int plasmaFloatCount = 12;
 
-/// Single place that knows the uniform layout of `plasma.frag`.
-/// Order must match the declarations in the shader.
-void writePlasmaUniforms(
-  UniformWriter uniforms, {
-  required Size size,
-  required double time,
-  required double layers,
-  required PlasmaPalette palette,
-  Offset touch = Offset.zero,
-  double touchStrength = 0,
-}) {
-  uniforms
-    ..size(size) // uSize
-    ..float(time) // uTime
-    ..float(layers) // uLayers
-    ..offset(touch) // uTouch
-    ..float(touchStrength) // uTouchStrength
-    ..color(palette.a) // uColorA
-    ..color(palette.b); // uColorB
-  assert(
-    uniforms.length == plasmaFloatCount,
-    'plasma.frag expects $plasmaFloatCount floats, wrote ${uniforms.length}',
-  );
+/// GPU version: one `drawRect` whose every pixel is computed by `plasma.frag`.
+///
+/// `repaint: clock` makes every tick call `markNeedsPaint` on the
+/// RenderCustomPaint directly: no `setState`, no build, no layout.
+class PlasmaShaderPainter extends CustomPainter {
+  PlasmaShaderPainter({
+    required this.shader,
+    required this.clock,
+    required this.layers,
+    required this.palette,
+  }) : super(repaint: clock);
+
+  final ui.FragmentShader shader;
+  final ShaderClock clock;
+  final int layers;
+  final PlasmaPalette palette;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // Indices follow declaration order in plasma.frag.
+    shader
+      ..setFloat(0, size.width) // uSize.x
+      ..setFloat(1, size.height) // uSize.y
+      ..setFloat(2, clock.seconds) // uTime
+      ..setFloat(3, layers.toDouble()) // uLayers
+      ..setFloat(4, palette.a.r) // uColorA
+      ..setFloat(5, palette.a.g)
+      ..setFloat(6, palette.a.b)
+      ..setFloat(7, palette.a.a)
+      ..setFloat(8, palette.b.r) // uColorB
+      ..setFloat(9, palette.b.g)
+      ..setFloat(10, palette.b.b)
+      ..setFloat(11, palette.b.a);
+
+    canvas.drawRect(Offset.zero & size, Paint()..shader = shader);
+  }
+
+  @override
+  bool shouldRepaint(PlasmaShaderPainter old) =>
+      old.shader != shader || old.layers != layers || old.palette != palette;
 }
 
 /// CPU twin of `plasma.frag`: identical math evaluated in Dart once per cell

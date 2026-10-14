@@ -26,5 +26,3 @@ flutter:
   # bundle (SkSL / MSL / GLSL ES / SPIR-V) and shipped as an asset.
   shaders:
     - shaders/plasma.frag
-    - shaders/ripple.frag
-    - shaders/glitch.frag

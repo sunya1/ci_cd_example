@@ -6,7 +6,6 @@ import '../perf/frame_stats.dart';
 import '../perf/frame_stats_panel.dart';
 import '../shaders/shader_clock.dart';
 import '../shaders/shader_library.dart';
-import '../shaders/shader_surface.dart';
 import 'plasma.dart';
 
 enum RenderMode {
@@ -42,7 +41,7 @@ class BenchmarkPage extends StatefulWidget {
 
 class _BenchmarkPageState extends State<BenchmarkPage> with SingleTickerProviderStateMixin {
   late final ShaderClock _clock = ShaderClock(this);
-  final ui.FragmentShader _shader = ShaderLibrary.create(AppShader.plasma);
+  final ui.FragmentShader _shader = ShaderLibrary.createPlasma();
   final FrameStatsMonitor _monitor = FrameStatsMonitor();
 
   late RenderMode _mode = widget.initialMode;
@@ -66,15 +65,15 @@ class _BenchmarkPageState extends State<BenchmarkPage> with SingleTickerProvider
   Widget build(BuildContext context) {
     final palette = plasmaPalettes.first;
     final surface = switch (_mode) {
-      RenderMode.gpuShader => ShaderSurface(
-        shader: _shader,
-        repaint: _clock,
-        onUniforms: (uniforms, size) => writePlasmaUniforms(
-          uniforms,
-          size: size,
-          time: _clock.seconds,
-          layers: _layers.toDouble(),
-          palette: palette,
+      RenderMode.gpuShader => RepaintBoundary(
+        child: CustomPaint(
+          size: Size.infinite,
+          painter: PlasmaShaderPainter(
+            shader: _shader,
+            clock: _clock,
+            layers: _layers,
+            palette: palette,
+          ),
         ),
       ),
       RenderMode.cpuPainter => RepaintBoundary(

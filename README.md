@@ -12,9 +12,7 @@ CI/CD (GitHub Actions → Fastlane → Firebase App Distribution), setup (RU): [
 
 | Screen | Shader | Shows |
 |---|---|---|
-| Procedural plasma | `shaders/plasma.frag` | uniforms, touch input, Ticker → `markNeedsPaint` via custom `RenderBox` (no rebuilds) |
-| Ripple | `shaders/ripple.frag` | `sampler2D`, texture built with `PictureRecorder.toImageSync` |
-| Widget filter | `shaders/glitch.frag` | `ImageFilter.shader` over live, still-interactive widgets (Impeller only) |
+| Procedural plasma | `shaders/plasma.frag` | uniforms via `setFloat`, `CustomPainter(repaint: clock)` + `RepaintBoundary` (no rebuilds) |
 | CPU vs GPU benchmark | `plasma.frag` vs `CpuPlasmaPainter` | identical math on GPU vs Dart, live `FrameTiming` stats |
 | Bar chart | — | custom leaf `RenderBox` (`RenderBarChart`) vs `Row` of widgets, live data, 20–1000 bars |
 
@@ -23,16 +21,15 @@ CI/CD (GitHub Actions → Fastlane → Firebase App Distribution), setup (RU): [
 ```
 shaders/                    GLSL sources, compiled by impellerc at build time
 lib/src/shaders/
-  shader_library.dart       loads every FragmentProgram once (before runApp)
-  uniform_writer.dart       sequential setFloat in declaration order (no magic indices)
-  shader_clock.dart         vsync Ticker as a Listenable
-  shader_surface.dart       LeafRenderObjectWidget + RenderBox (repaint boundary)
+  shader_library.dart       loads the FragmentProgram once (before runApp)
+  shader_clock.dart         vsync Ticker as a Listenable (repaint trigger)
+lib/src/demos/plasma.dart   PlasmaShaderPainter (GPU) + CpuPlasmaPainter (same math in Dart)
 lib/src/render/
   bar_chart.dart            LeafRenderObjectWidget + RenderBarChart (layout/paint/hitTest)
   row_bar_chart.dart        same chart from ordinary widgets (Row + Expanded…)
 lib/src/perf/               FrameTiming aggregation + on-screen panel
-lib/src/demos/              the five screens
-test/                       compile/instantiate every shader, uniform layout, smoke frames
+lib/src/demos/              the screens
+test/                       shader compiles, uniform layout, smoke frames
 integration_test/ + test_driver/   automated frame-timing benchmark
 ```
 

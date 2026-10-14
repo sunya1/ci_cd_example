@@ -45,12 +45,12 @@ RenderObject (layout + paint). Плюс четвёртое — **Layer tree**, �
 `OffsetLayer`. `markNeedsPaint()` поднимается вверх только до ближайшей границы. Поэтому
 анимированный шейдер, перерисовываемый 120 раз в секунду, не трогает окружающий UI.
 
-➡ В коде: `RenderShaderSurface.isRepaintBoundary => true` (`lib/src/shaders/shader_surface.dart`).
+➡ В коде: `RepaintBoundary` вокруг `CustomPaint` с шейдером (`lib/src/demos/plasma_demo.dart`).
 
 ### 1.4 Как анимировать шейдер без лишней работы
 
 ```
-Ticker (vsync) ─► ShaderClock.notifyListeners ─► RenderShaderSurface.markNeedsPaint
+Ticker (vsync) ─► ShaderClock.notifyListeners ─► CustomPainter(repaint: clock) → markNeedsPaint
                                                   │
                     build ✗   layout ✗   paint ✓ (только этот слой)
 ```
@@ -58,7 +58,7 @@ Ticker (vsync) ─► ShaderClock.notifyListeners ─► RenderShaderSurface.mar
 Ни одного `setState` на кадр. Uniform'ы читаются **в фазе paint**. `Ticker`, в отличие
 от `Timer`, синхронизирован с vsync и сам останавливается, когда route скрыт (`TickerMode`).
 
-➡ `lib/src/shaders/shader_clock.dart`, `lib/src/shaders/shader_surface.dart`.
+➡ `lib/src/shaders/shader_clock.dart`, `PlasmaShaderPainter` в `lib/src/demos/plasma.dart`.
 
 ---
 
@@ -167,14 +167,14 @@ void main() {
 3. **Индексы `setFloat`** — плоские, по float-компонентам в порядке объявления
    (`vec4` = 4 слота). **Sampler'ы не считаются** и задаются через `setImageSampler(i, image)`
    со своей нумерацией с 0. Самая частая ошибка интеграции.
-   ➡ Решение в коде: `UniformWriter` пишет последовательно; `writePlasmaUniforms` содержит
-   `assert(length == 15)`; тест `plasma uniform layout matches plasma.frag`.
+   ➡ В коде: индексы подписаны комментариями в `.frag` и в `PlasmaShaderPainter.paint`;
+   тест `plasma.frag compiles and has the expected uniform layout` проверяет, что слотов ровно 12.
 4. **Циклы** — только с константной границей (ограничение SkSL / GLSL ES 1.0). Переменное
    число итераций: `for (i < MAX) { if (i >= uN) break; }` ➡ `plasma.frag`, `uLayers`.
 5. **Выход — premultiplied alpha.** `rgb ≤ a`, иначе артефакты при блендинге
-   ➡ `glitch.frag` делает `min(r, base.a)`.
+   (в plasma alpha = 1, поэтому проблемы нет).
 6. **Precision:** `mediump` (fp16) быстрее на мобильных GPU, но `sin(uTime)` при большом
-   `uTime` начинает «ступенчато» дёргаться ➡ в `plasma.frag` `highp`, в `ripple.frag` `mediump`.
+   `uTime` начинает «ступенчато» дёргаться ➡ в `plasma.frag` поэтому `highp`.
 7. **OpenGL ES** переворачивает ось Y у offscreen-текстур: в шейдерах для
    `ImageFilter.shader` нужен `#ifdef IMPELLER_TARGET_OPENGLES uv.y = 1.0 - uv.y;`.
 8. Нет доступа к пикселям «под» шейдером из `Paint.shader` — для этого `ImageFilter.shader`
@@ -186,9 +186,9 @@ void main() {
 
 | Способ | Вход | Где в репо |
 |---|---|---|
-| `Paint.shader` в `CustomPainter` / своём `RenderBox` | только uniform'ы и свои текстуры | `ShaderSurface` (plasma, ripple) |
-| `setImageSampler` + `ui.Image` | картинка / `PictureRecorder` / `toImageSync` | `ripple_demo.dart` |
-| `ImageFiltered(imageFilter: ImageFilter.shader(s))` | **отрендеренный child** (живые виджеты) | `glitch_demo.dart` |
+| `Paint.shader` в `CustomPainter` / своём `RenderBox` | только uniform'ы и свои текстуры | **`PlasmaShaderPainter` (используется в проекте)** |
+| `setImageSampler` + `ui.Image` | картинка / `PictureRecorder` / `toImageSync` | — |
+| `ImageFiltered(imageFilter: ImageFilter.shader(s))` | **отрендеренный child** (живые виджеты) | — |
 | `BackdropFilter(filter: ImageFilter.shader(s))` | то, что **под** виджетом | — |
 | `ShaderMask` | маска поверх child (ждёт `Shader`) | — |
 
@@ -199,9 +199,11 @@ void main() {
 - нативный фильтр **снимает копию** uniform'ов при создании, поэтому для анимации
   каждый кадр нужен новый `ImageFilter.shader(...)` (дёшево, перестраивается только обёртка,
   child передан через `ListenableBuilder.child`);
-- фильтр меняет только пиксели. **Hit testing остаётся по реальному layout**, поэтому
-  в демо кнопки работают под эффектом. При сильных искажениях визуал и зоны нажатия
-  расходятся.
+- фильтр меняет только пиксели. **Hit testing остаётся по реальному layout**: кнопки
+  под эффектом работают, но при сильных искажениях визуал и зоны нажатия расходятся.
+
+> В проекте используется только первый способ (`Paint.shader` в `CustomPainter`).
+> Остальные два — теория на случай вопроса «а как применить шейдер к картинке / виджету».
 
 ---
 
@@ -212,7 +214,7 @@ void main() {
 | `FragmentProgram` | дорогой (загрузка, pipeline) | загрузить **один раз**, кэшировать (`ShaderLibrary.preload()` до `runApp`) |
 | `FragmentShader` | дешёвый, хранит буфер uniform'ов | один на painter, **переиспользовать**, `dispose()` в `State.dispose` |
 | `ui.Image` для sampler | GPU-память | `dispose()` при смене размера / уходе с экрана |
-| `Paint` | — | поле RenderObject, не создавать в `paint()` |
+| `Paint` | дешёвый | можно создавать в `paint()`; в горячих местах — держать полем |
 
 Два одновременно живых набора uniform'ов (например, два виджета с разными цветами) требуют
 **двух** `FragmentShader` от одной программы.
@@ -229,7 +231,7 @@ GPU cost ≈ pixels_covered × devicePixelRatio² × (ALU ops + texture fetches)
 
 - iPhone с DPR 3: полноэкранный прямоугольник ≈ 1170×2532 ≈ **3 млн** вызовов `main()` за кадр.
 - **ALU-bound:** plasma (sin/sqrt/exp). Ручка нагрузки — `uLayers`.
-- **Texture-bound:** ripple, glitch (glitch делает 3 выборки на пиксель для RGB split).
+- **Texture-bound:** шейдеры, которые много читают из текстуры (`texture(...)`): размытие, искажения.
 - **Ветвления** (`if`), зависящие от пикселя, вызывают дивергенцию warp'ов. Ветвления по
   uniform'у (одинаковые для всех пикселей) почти бесплатны.
 
@@ -324,7 +326,7 @@ Raster-поток кодирует draw call, GPU выполняет fragment st
 `RepaintBoundary.toImageSync()` → `setImageSampler` → рисовать в `CustomPainter`.
 
 **Как анимировать шейдер эффективно?**
-Ticker → `markNeedsPaint` на RenderObject с собственным repaint boundary. Uniform'ы
+Ticker → `CustomPainter(repaint: clock)` → `markNeedsPaint`, вокруг `RepaintBoundary`. Uniform'ы
 выставляются в `paint()`. Ни build, ни layout.
 
 **Как проверить, что шейдер не тормозит?**

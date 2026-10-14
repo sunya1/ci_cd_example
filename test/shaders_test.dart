@@ -3,31 +3,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shaders_and_render_object/src/demos/benchmark_demo.dart';
 import 'package:shaders_and_render_object/src/demos/plasma.dart';
 import 'package:shaders_and_render_object/src/demos/plasma_demo.dart';
-import 'package:shaders_and_render_object/src/demos/ripple_demo.dart';
 import 'package:shaders_and_render_object/src/shaders/shader_library.dart';
-import 'package:shaders_and_render_object/src/shaders/uniform_writer.dart';
 
 void main() {
   setUpAll(ShaderLibrary.preload);
 
-  test('every declared .frag compiles and instantiates', () {
-    for (final shader in AppShader.values) {
-      ShaderLibrary.create(shader).dispose();
-    }
-  });
-
-  test('plasma uniform layout matches plasma.frag', () {
-    final shader = ShaderLibrary.create(AppShader.plasma);
-    final writer = UniformWriter(shader);
-    writePlasmaUniforms(
-      writer,
-      size: const Size(100, 100),
-      time: 1,
-      layers: 2,
-      palette: plasmaPalettes.first,
-    );
-    expect(writer.length, plasmaFloatCount);
-    // Writing past the end of the uniform buffer must fail loudly.
+  test('plasma.frag compiles and has the expected uniform layout', () {
+    final shader = ShaderLibrary.createPlasma();
+    // Last declared slot is writable...
+    shader.setFloat(plasmaFloatCount - 1, 0);
+    // ...and one past the end fails: Dart and GLSL agree on the layout.
     expect(() => shader.setFloat(plasmaFloatCount, 0), throwsA(anything));
     shader.dispose();
   });
@@ -41,7 +26,6 @@ void main() {
   }
 
   testWidgets('plasma page animates', (t) => pumpFrames(t, const PlasmaDemoPage()));
-  testWidgets('ripple page animates', (t) => pumpFrames(t, const RippleDemoPage()));
   testWidgets('benchmark GPU mode', (t) => pumpFrames(t, const BenchmarkPage()));
   testWidgets(
     'benchmark CPU mode',

@@ -1,6 +1,6 @@
-// Procedural animated plasma. No textures: every pixel is pure math (ALU-bound).
-// The CPU twin of this function lives in lib/src/demos/cpu_plasma_painter.dart
-// so the benchmark compares identical work.
+// Procedural animated plasma. No textures: every pixel is pure math.
+// The CPU twin of this function lives in lib/src/demos/plasma.dart
+// (CpuPlasmaPainter) so the benchmark compares identical work.
 #version 460 core
 
 #include <flutter/runtime_effect.glsl>
@@ -8,14 +8,12 @@
 // highp: uTime grows unbounded; mediump (fp16) would make sin(t) visibly step.
 precision highp float;
 
-// Float uniform indices (setFloat) follow declaration order:
-uniform vec2 uSize;          // 0,1   logical size of the painted rect
-uniform float uTime;         // 2     seconds
-uniform float uLayers;       // 3     1..8, detail octaves (GPU cost knob)
-uniform vec2 uTouch;         // 4,5   pointer position in local px
-uniform float uTouchStrength;// 6     0..1, fades out after release
-uniform vec4 uColorA;        // 7..10
-uniform vec4 uColorB;        // 11..14
+// setFloat indices follow declaration order (vec2 = 2 slots, vec4 = 4 slots):
+uniform vec2 uSize;    // 0, 1
+uniform float uTime;   // 2
+uniform float uLayers; // 3   1..8, detail octaves (GPU cost knob)
+uniform vec4 uColorA;  // 4..7
+uniform vec4 uColorB;  // 8..11
 
 out vec4 fragColor;
 
@@ -32,13 +30,12 @@ float plasma(vec2 p, float t) {
 }
 
 void main() {
-  vec2 pos = FlutterFragCoord().xy;
-  vec2 uv = pos / uSize;
+  vec2 uv = FlutterFragCoord().xy / uSize;
   // Aspect-correct coordinates centred on the rect.
   vec2 p = (uv - 0.5) * vec2(uSize.x / uSize.y, 1.0) * 6.0;
 
-  // Loop bound must be a compile-time constant (SkSL / GLSL ES 1.0 rule),
-  // so the uniform-controlled count is enforced with an early break.
+  // Loop bound must be a compile-time constant, so the uniform-controlled
+  // count is enforced with an early break.
   float v = 0.0;
   float amp = 1.0;
   float norm = 0.0;
@@ -55,9 +52,5 @@ void main() {
   vec3 col = mix(uColorA.rgb, uColorB.rgb, k);
   col += 0.12 * vec3(sin(PI * v), sin(PI * v + 2.094), sin(PI * v + 4.188));
 
-  float d = distance(pos, uTouch);
-  col += uTouchStrength * 0.6 * exp(-d * d / 4000.0);
-
-  // Output is premultiplied; alpha = 1 so no extra work needed.
   fragColor = vec4(clamp(col, 0.0, 1.0), 1.0);
 }

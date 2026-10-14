@@ -4,12 +4,10 @@ import 'package:flutter/material.dart';
 
 import '../shaders/shader_clock.dart';
 import '../shaders/shader_library.dart';
-import '../shaders/shader_surface.dart';
-import '../shaders/uniform_writer.dart';
 import 'plasma.dart';
 
-/// Procedural full-screen shader. Animation and touch never call setState:
-/// the clock marks the render object dirty and uniforms are read during paint.
+/// Full-screen procedural shader. Animation never calls setState:
+/// the clock repaints the painter directly.
 class PlasmaDemoPage extends StatefulWidget {
   const PlasmaDemoPage({super.key});
 
@@ -19,38 +17,10 @@ class PlasmaDemoPage extends StatefulWidget {
 
 class _PlasmaDemoPageState extends State<PlasmaDemoPage> with SingleTickerProviderStateMixin {
   late final ShaderClock _clock = ShaderClock(this);
-  final ui.FragmentShader _shader = ShaderLibrary.create(AppShader.plasma);
+  final ui.FragmentShader _shader = ShaderLibrary.createPlasma();
 
   double _layers = 2;
   PlasmaPalette _palette = plasmaPalettes.first;
-
-  // Pointer state is consumed in paint, so plain fields are enough.
-  Offset _touch = Offset.zero;
-  bool _pressed = false;
-  double _releasedAt = double.negativeInfinity;
-
-  void _onPointer(PointerEvent event) {
-    _touch = event.localPosition;
-    if (event is PointerDownEvent) _pressed = true;
-    if (event is PointerUpEvent || event is PointerCancelEvent) {
-      _pressed = false;
-      _releasedAt = _clock.seconds;
-    }
-  }
-
-  void _writeUniforms(UniformWriter uniforms, Size size) {
-    final time = _clock.seconds;
-    final fade = (1 - (time - _releasedAt) * 2).clamp(0.0, 1.0);
-    writePlasmaUniforms(
-      uniforms,
-      size: size,
-      time: time,
-      layers: _layers,
-      palette: _palette,
-      touch: _touch,
-      touchStrength: _pressed ? 1 : fade,
-    );
-  }
 
   @override
   void dispose() {
@@ -71,12 +41,17 @@ class _PlasmaDemoPageState extends State<PlasmaDemoPage> with SingleTickerProvid
       body: Stack(
         children: [
           Positioned.fill(
-            child: Listener(
-              onPointerDown: _onPointer,
-              onPointerMove: _onPointer,
-              onPointerUp: _onPointer,
-              onPointerCancel: _onPointer,
-              child: ShaderSurface(shader: _shader, repaint: _clock, onUniforms: _writeUniforms),
+            // Own layer: repainting the shader every frame does not repaint
+            // the controls, and vice versa.
+            child: RepaintBoundary(
+              child: CustomPaint(
+                painter: PlasmaShaderPainter(
+                  shader: _shader,
+                  clock: _clock,
+                  layers: _layers.round(),
+                  palette: _palette,
+                ),
+              ),
             ),
           ),
           Positioned(
@@ -92,7 +67,7 @@ class _PlasmaDemoPageState extends State<PlasmaDemoPage> with SingleTickerProvid
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'Detail layers: ${_layers.round()}  (drag to light up)',
+                        'Detail layers: ${_layers.round()}',
                         style: const TextStyle(color: Colors.white),
                       ),
                       Slider(

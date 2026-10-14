@@ -4,9 +4,9 @@ import 'package:flutter/scheduler.dart';
 /// Vsync-driven time source for shaders.
 ///
 /// Uses a [Ticker] (not a `Timer`), so it fires exactly once per frame and
-/// stops automatically when the route is hidden ([TickerMode]). Listeners are
-/// expected to call `markNeedsPaint` — never `setState` — so animating a
-/// shader skips the build and layout phases entirely.
+/// stops automatically when the route is hidden ([TickerMode]).
+/// Passed as `CustomPainter(repaint: clock)`: every tick only repaints the
+/// painter, so build and layout are skipped entirely.
 class ShaderClock extends ChangeNotifier {
   ShaderClock(TickerProvider vsync) {
     _ticker = vsync.createTicker(_onTick)..start();

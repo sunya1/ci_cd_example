@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'demos/bar_chart_demo.dart';
 import 'demos/benchmark_demo.dart';
-import 'demos/glitch_demo.dart';
 import 'demos/plasma_demo.dart';
-import 'demos/ripple_demo.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key, required this.performanceOverlay});
@@ -18,20 +16,8 @@ class HomePage extends StatelessWidget {
       (
         Icons.blur_on,
         'Procedural plasma',
-        'plasma.frag · uniforms, Ticker → markNeedsPaint, custom RenderBox',
+        'plasma.frag · uniforms, CustomPainter(repaint: clock), no rebuilds',
         (_) => const PlasmaDemoPage(),
-      ),
-      (
-        Icons.water_drop_outlined,
-        'Ripple',
-        'ripple.frag · sampler2D, texture from PictureRecorder, touch input',
-        (_) => const RippleDemoPage(),
-      ),
-      (
-        Icons.auto_fix_high,
-        'Widget filter',
-        'glitch.frag · ImageFilter.shader over live interactive widgets (Impeller)',
-        (_) => const GlitchDemoPage(),
       ),
       (
         Icons.speed,
