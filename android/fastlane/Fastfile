@@ -1,0 +1,15 @@
+default_platform(:android)
+
+platform :android do
+  desc "Upload the release APK (built by `flutter build apk --release`) to Firebase App Distribution"
+  lane :distribute do
+    firebase_app_distribution(
+      app: ENV.fetch("FIREBASE_APP_ID"),
+      service_credentials_file: ENV.fetch("FIREBASE_SERVICE_CREDENTIALS_FILE"),
+      android_artifact_type: "APK",
+      android_artifact_path: File.expand_path("../../build/app/outputs/flutter-apk/app-release.apk", __dir__),
+      groups: ENV.fetch("FIREBASE_TESTER_GROUPS", "testers"),
+      release_notes: ENV.fetch("RELEASE_NOTES", "Local build")
+    )
+  end
+end
